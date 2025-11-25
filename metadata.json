@@ -1,0 +1,5 @@
+{
+  "name": "ProductGenius AI",
+  "description": "Gera descrições de marketing, especificações técnicas reais e metadados de SEO para produtos usando Google Search e Gemini.",
+  "requestFramePermissions": []
+}
