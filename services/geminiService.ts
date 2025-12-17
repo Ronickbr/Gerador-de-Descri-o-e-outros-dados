@@ -1,23 +1,31 @@
 import { GoogleGenAI } from "@google/genai";
 import { GeneratedContent, Source } from "../types";
 
-const apiKey = process.env.API_KEY;
-
 // Initialize the client
-const ai = new GoogleGenAI({ apiKey: apiKey });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateProductData = async (
   productName: string,
-  manufacturer: string
+  manufacturer: string,
+  category?: string,
+  subcategory?: string
 ): Promise<GeneratedContent> => {
   const modelId = "gemini-2.5-flash"; // Using Flash for speed and Search tool support
+
+  const contextInfo = `
+  Produto: "${productName}"
+  Fabricante: "${manufacturer}"
+  ${category ? `Categoria: "${category}"` : ''}
+  ${subcategory ? `Subcategoria: "${subcategory}"` : ''}
+  `;
 
   const prompt = `
   Atue como um especialista sênior em Marketing de Produto e SEO Técnico.
   
-  Pesquise na web informações reais e atualizadas sobre o produto: "${productName}" do fabricante "${manufacturer}".
+  Pesquise na web informações reais e atualizadas sobre o seguinte item:
+  ${contextInfo}
   
-  Você deve gerar uma resposta estruturada contendo exatamente três seções separadas por delimitadores específicos.
+  Você deve gerar uma resposta estruturada contendo exatamente quatro seções separadas por delimitadores específicos.
   Não use Markdown para os delimitadores, use apenas o texto plano conforme solicitado abaixo.
 
   Estrutura da resposta:
@@ -30,14 +38,25 @@ export const generateProductData = async (
   - Use <ul> e <li> para listar benefícios ou diferenciais.
   - Use <strong> para destacar palavras-chave importantes.
   
-  O tom deve ser persuasivo (copywriting), destacando benefícios e dores que o produto resolve.
+  O tom deve ser persuasivo (copywriting), destacando benefícios e dores que o produto resolve. Se a categoria for fornecida, use-a para contextualizar o uso.
 
   ===SPECS===
-  Liste as especificações técnicas cruciais encontradas na pesquisa (ex: dimensões, peso, material, processador, potência, conectividade, etc.).
-  Retorne APENAS uma lista separada por quebras de linha. Exemplo:
-  Processador: XYZ
-  Memória: 8GB
-  Peso: 200g
+  Liste as especificações técnicas cruciais em formato de LISTA HTML (<ul>).
+  IMPORTANTE: O texto DEVE ser formatado em HTML (sem as tags <html> ou <body>).
+  - Use a tag <ul class="specs-list"> para a lista.
+  - Use <li> para cada especificação.
+  - Use <strong> para o nome da característica, seguido de dois pontos e o valor.
+  
+  Exemplo de formato esperado:
+  <ul class="specs-list">
+    <li><strong>Processador:</strong> Detalhe do processador</li>
+    <li><strong>Peso:</strong> 200g</li>
+  </ul>
+
+  ===IMAGES===
+  Pesquise e liste até 4 URLs diretas de imagens públicas deste produto (formatos JPG, PNG ou WEBP).
+  Tente encontrar links de imagens de divulgação, reviews ou lojas.
+  Retorne APENAS as URLs, uma por linha. Se não encontrar links diretos confiáveis, deixe em branco.
 
   ===SEO===
   Gere os metadados para uma página de e-commerce deste produto.
@@ -75,15 +94,25 @@ export const generateProductData = async (
       });
     }
 
-    // Parse the structured text response
-    const marketingMatch = text.match(/===MARKETING===([\s\S]*?)===SPECS===/);
-    const specsMatch = text.match(/===SPECS===([\s\S]*?)===SEO===/);
-    const seoMatch = text.match(/===SEO===([\s\S]*?)$/);
+    // Parse the structured text response more robustly
+    // Normalize delimiters in case of markdown bolding
+    const cleanText = text.replace(/\*\*===(.*?)===\*\*/g, '===$1===');
+
+    // Use lookaheads to capture content between delimiters without strict ordering dependency
+    const marketingMatch = cleanText.match(/===MARKETING===([\s\S]*?)(?====SPECS===|===IMAGES===|===SEO===|$)/);
+    const specsMatch = cleanText.match(/===SPECS===([\s\S]*?)(?====IMAGES===|===SEO===|===MARKETING===|$)/);
+    const imagesMatch = cleanText.match(/===IMAGES===([\s\S]*?)(?====SEO===|===MARKETING===|===SPECS===|$)/);
+    const seoMatch = cleanText.match(/===SEO===([\s\S]*?)(?====MARKETING===|===SPECS===|===IMAGES===|$)/);
 
     const marketing = marketingMatch ? marketingMatch[1].trim() : "Descrição não gerada.";
     
-    const specsRaw = specsMatch ? specsMatch[1].trim() : "";
-    const specs = specsRaw.split('\n').filter(line => line.trim().length > 0).map(line => line.replace(/^-\s*/, '').trim());
+    // Specs is now treated as a raw HTML string block
+    const specs = specsMatch ? specsMatch[1].trim() : "";
+
+    const imagesRaw = imagesMatch ? imagesMatch[1].trim() : "";
+    const images = imagesRaw.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0 && line.startsWith('http'));
 
     const seoRaw = seoMatch ? seoMatch[1].trim() : "";
     
@@ -103,10 +132,12 @@ export const generateProductData = async (
       specs,
       seo,
       sources,
+      images,
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating content:", error);
-    throw new Error("Falha ao gerar dados do produto. Verifique sua chave de API ou tente novamente.");
+    // Propagate the original error so we can catch 429s in the UI
+    throw error;
   }
 };
