@@ -1,8 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
 import { GeneratedContent, Source } from "../types";
 
-// Initialize the client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to get key from Env or LocalStorage
+export const getApiKey = (): string | null => {
+  // Priority: 1. Environment Variable, 2. Local Storage
+  if (process.env.API_KEY && process.env.API_KEY.length > 0) {
+    return process.env.API_KEY;
+  }
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('gemini_api_key');
+  }
+  return null;
+};
 
 export const generateProductData = async (
   productName: string,
@@ -10,6 +19,15 @@ export const generateProductData = async (
   category?: string,
   subcategory?: string
 ): Promise<GeneratedContent> => {
+  
+  const apiKey = getApiKey();
+
+  if (!apiKey) {
+    throw new Error("API_KEY_MISSING");
+  }
+
+  // Initialize client per request to ensure we use the latest key
+  const ai = new GoogleGenAI({ apiKey });
   const modelId = "gemini-2.5-flash"; // Using Flash for speed and Search tool support
 
   const contextInfo = `

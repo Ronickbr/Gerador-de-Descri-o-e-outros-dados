@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { generateProductData } from './services/geminiService';
+import React, { useState, useEffect } from 'react';
+import { generateProductData, getApiKey } from './services/geminiService';
 import { GeneratedContent, LoadingState, ProductFormData } from './types';
 import { ResultCard } from './components/ResultCard';
 import { SeoDisplay } from './components/SeoDisplay';
@@ -46,6 +46,85 @@ const TableCellsIcon = () => (
   </svg>
 );
 
+const CogIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 0 1 0 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+    </svg>
+);
+
+const KeyIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
+    </svg>
+);
+
+
+// Settings Modal Component
+const ApiKeyModal = ({ 
+    isOpen, 
+    onClose, 
+    initialKey 
+}: { 
+    isOpen: boolean; 
+    onClose: (key: string) => void;
+    initialKey: string;
+}) => {
+    const [key, setKey] = useState(initialKey);
+    
+    useEffect(() => {
+        setKey(initialKey);
+    }, [initialKey, isOpen]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in-up">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                <div className="flex items-center gap-3 mb-4 text-brand-600">
+                    <div className="p-2 bg-brand-50 rounded-lg">
+                        <KeyIcon />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-800">Configurar API Key</h3>
+                </div>
+                
+                <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                    Para usar o ProductGenius, você precisa de uma chave de API do Google Gemini. 
+                    Seu uso é gratuito dentro dos limites do plano gratuito.
+                </p>
+
+                <div className="space-y-3 mb-6">
+                    <label className="block text-sm font-bold text-slate-700">Sua Chave API (Gemini)</label>
+                    <input 
+                        type="password" 
+                        value={key}
+                        onChange={(e) => setKey(e.target.value)}
+                        placeholder="Ex: AIzaSy..."
+                        className="w-full p-3 rounded-lg border border-slate-300 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all font-mono text-sm"
+                    />
+                    <a 
+                        href="https://aistudio.google.com/app/apikey" 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="text-xs text-brand-600 hover:text-brand-800 underline flex items-center gap-1"
+                    >
+                        Obter chave no Google AI Studio &rarr;
+                    </a>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                    <button 
+                        onClick={() => onClose(key)}
+                        className="px-5 py-2.5 bg-brand-600 text-white rounded-xl font-bold text-sm hover:bg-brand-700 transition-colors shadow-lg shadow-brand-500/20"
+                    >
+                        Salvar e Continuar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'single' | 'bulk'>('single');
   
@@ -55,9 +134,40 @@ export default function App() {
   const [result, setResult] = useState<GeneratedContent | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Settings State
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+
+  // Check for API Key on load
+  useEffect(() => {
+    const currentKey = getApiKey();
+    if (currentKey) {
+        setApiKey(currentKey);
+    } else {
+        // If no key found anywhere, show settings automatically
+        setShowSettings(true);
+    }
+  }, []);
+
+  const handleSaveKey = (newKey: string) => {
+    if (newKey) {
+        localStorage.setItem('gemini_api_key', newKey);
+        setApiKey(newKey);
+        setShowSettings(false);
+    } else {
+        alert("Por favor, insira uma chave válida.");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.productName || !formData.manufacturer) return;
+    
+    // Double check key before submitting
+    if (!getApiKey()) {
+        setShowSettings(true);
+        return;
+    }
 
     setLoadingState(LoadingState.LOADING);
     setError(null);
@@ -68,13 +178,27 @@ export default function App() {
       setResult(data);
       setLoadingState(LoadingState.SUCCESS);
     } catch (err: any) {
-      setError(err.message || 'Ocorreu um erro inesperado.');
+      const errMsg = err.message || 'Ocorreu um erro inesperado.';
+      
+      if (errMsg === 'API_KEY_MISSING') {
+          setError('Chave de API não configurada. Por favor, clique no ícone de engrenagem para configurar.');
+          setShowSettings(true);
+      } else {
+          setError(errMsg);
+      }
       setLoadingState(LoadingState.ERROR);
     }
   };
 
   return (
     <div className="min-h-screen pb-20 selection:bg-brand-100 selection:text-brand-900">
+      
+      <ApiKeyModal 
+        isOpen={showSettings} 
+        onClose={handleSaveKey} 
+        initialKey={apiKey}
+      />
+
       {/* Glass Header */}
       <header className="fixed w-full top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -86,6 +210,14 @@ export default function App() {
               ProductGenius <span className="text-brand-600">AI</span>
             </h1>
           </div>
+          
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all"
+            title="Configurar API Key"
+          >
+            <CogIcon />
+          </button>
         </div>
       </header>
 

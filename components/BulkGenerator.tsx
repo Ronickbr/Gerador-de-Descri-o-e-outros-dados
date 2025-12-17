@@ -43,7 +43,7 @@ export const BulkGenerator: React.FC = () => {
       }
 
       // Map spreadsheet columns to our structure
-      const mappedItems: BulkUploadItem[] = jsonData.map((row: any, index: number) => {
+      const mappedItems: BulkUploadItem[] = jsonData.map((row: any, index: number): BulkUploadItem | null => {
         const rowKeys = Object.keys(row);
         
         // Helper to find key safely with multiple aliases
@@ -120,8 +120,8 @@ export const BulkGenerator: React.FC = () => {
     const queue = [...items];
 
     // Rate Limiting Constants
-    const BASE_DELAY = 4000; // 4 seconds between requests (~15 RPM safety margin)
-    const MAX_RETRIES = 3;
+    const BASE_DELAY = 6000; // Increased to 6 seconds (~10 RPM)
+    const MAX_RETRIES = 5; // Increased retries
 
     for (let i = 0; i < queue.length; i++) {
       if (queue[i].status === 'COMPLETED') continue;
@@ -160,8 +160,9 @@ export const BulkGenerator: React.FC = () => {
 
             if (isRateLimit && retries < MAX_RETRIES) {
                 retries++;
-                // Exponential backoff: 10s, 20s, 40s
-                const backoffTime = 10000 * Math.pow(2, retries - 1);
+                // Exponential backoff: 15s, 30s, 60s, 120s...
+                // Starting higher (15s) because quota resets usually take a minute.
+                const backoffTime = 15000 * Math.pow(2, retries - 1);
                 
                 // Update UI to inform user about the wait
                 setItems(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'PROCESSING', error: `Quota cheia. Aguardando ${backoffTime/1000}s...` } : item));
@@ -170,7 +171,7 @@ export const BulkGenerator: React.FC = () => {
                 await new Promise(resolve => setTimeout(resolve, backoffTime));
             } else {
                 // Permanent failure or max retries reached
-                const finalError = isRateLimit ? 'Erro: Limite de quota excedido (Tente novamente mais tarde)' : errorMessage;
+                const finalError = isRateLimit ? 'Erro: Limite de quota excedido. Tente novamente mais tarde.' : errorMessage;
                 setItems(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'ERROR', error: finalError } : item));
                 break; // Exit retry loop, move to next item
             }
